@@ -1,1 +1,1 @@
-﻿#Powershell
+Permita-se ser grande e abrace a felicidade que sua grandeza lhe oferece. A felicidade não é algo pronto. Ela é feita das suas próprias ações. Um pássaro sentado em uma árvore nunca terá medo do galho quebrar, porque sua confiança não está no galho, mas em suas próprias asas.
