@@ -1,0 +1,1 @@
+Bora automatizar?! 💥🐱‍🏍
