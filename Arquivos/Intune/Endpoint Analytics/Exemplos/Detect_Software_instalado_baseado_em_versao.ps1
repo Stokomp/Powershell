@@ -1,6 +1,6 @@
 #Como identificar aplicacao Google Chrome baseada em versao menor que a versao atual 110.0.5481.104
 #Como funciona o script?
-#O parametro -lt (leather than) significa "menor que", então, voce vai colocar a versao desejada que queira monitorar.
+#O parametro -lt (less than) significa "menor que", então, voce vai colocar a versao desejada que queira monitorar.
 
 
 
