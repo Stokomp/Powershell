@@ -1,0 +1,4 @@
+Link da documentação oficial Microsoft
+
+How to remove and upgrade: https://learn.microsoft.com/en-us/deployoffice/upgrade-from-msi-version
+Deployment guide: https://learn.microsoft.com/en-us/deployoffice/deployment-guide-microsoft-365-apps
