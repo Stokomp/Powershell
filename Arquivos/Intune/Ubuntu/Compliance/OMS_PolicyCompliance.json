@@ -1,0 +1,39 @@
+{
+    "name": "Política de Conformidade do Ubuntu",
+    "description": "Esta política define as regras de conformidade para uma instalação do Ubuntu.",
+    "os": {
+      "name": "Ubuntu",
+      "version": "22.04"
+    },
+    "rules": [
+      {
+        "name": "Senha forte é necessária",
+        "description": "As senhas devem ter pelo menos 12 caracteres e conter letras maiúsculas, minúsculas, números e caracteres especiais.",
+        "check": {
+          "type": "password_strength",
+          "minimum_length": 12,
+          "require_uppercase": true,
+          "require_lowercase": true,
+          "require_numbers": true,
+          "require_symbols": true
+        }
+      },
+      {
+        "name": "Atualizações automáticas devem ser ativadas",
+        "description": "O sistema deve estar configurado para baixar e instalar atualizações automaticamente.",
+        "check": {
+          "type": "update_settings",
+          "automatic_updates_enabled": true
+        }
+      },
+      {
+        "name": "Firewall deve estar ativado",
+        "description": "O firewall deve estar ativado e configurado para bloquear tráfego não autorizado.",
+        "check": {
+          "type": "firewall_enabled",
+          "firewall_enabled": true
+        }
+      }
+    ]
+  }
+  
