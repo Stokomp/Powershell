@@ -1,0 +1,1 @@
+Scripts para ajudar na gestão de Ubuntu dentro do Intune.
