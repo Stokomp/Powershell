@@ -1,10 +1,10 @@
 <#
-Criado por: Marcos Paulo
+Criado por: Marcos Paulo Stoko
 #>
 
-$clientId = "2c6d525e-5513-4c28-9e98-c46bf5f3cd80"
-$clientSecret = ".YW8Q~FkltD8Znwo5OMA4bc1W6td9vlb~Eahccxu"
-$ourTenantId = "cc791420-7a5a-44f2-a44a-ab98339bd815"
+$clientId = "---"
+$clientSecret = "---"
+$ourTenantId = "---"
 
 $Resource = "deviceManagement/windowsAutopilotDeviceIdentities"
 $Resource = "deviceManagement/managedDevices"
