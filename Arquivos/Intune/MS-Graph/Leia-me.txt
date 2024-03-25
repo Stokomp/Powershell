@@ -1,0 +1,6 @@
+Script voltados ao Ms-Graph.
+
+📌 Documentação oficial Microsoft 👇🏽🚀
+> Readme: https://aka.ms/graph/sdk/powershell
+> SDK Docs: https://aka.ms/graph/sdk/powershell/docs
+> API Docs: https://aka.ms/graph/docs
