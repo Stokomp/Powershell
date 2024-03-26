@@ -1,5 +1,7 @@
 <#
 Criado por: Marcos Paulo Stoko
+Descrição: Utilize este script powershell para aplicar uma TAG espeficica em dispositivos via número de série.
+Versão: 1.0
 #>
 
 $clientId = "---"
@@ -17,6 +19,10 @@ Connect-MSGraph -ClientSecret $clientSecret
 
 $Grouptag = "BR" #Specify the GroupTag Here
 $SerialNumbers = Get-Content -Path "SerialNumber.txt"
+
+# Conectar ao Microsoft Graph
+Connect-MgGraph
+
 foreach ($Serial in $SerialNumbers) {
     $AutopilotDevice = Get-AutopilotDevice -serial $Serial
     
