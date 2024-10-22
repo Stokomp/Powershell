@@ -1,7 +1,7 @@
 <#
 Criado por: Marcos Paulo Stoko
 Descrição: Utilize este script powershell para aplicar uma TAG espeficica em dispositivos via número de série.
-Versão: 1.0
+Versão do Microsoft Graph: 1.0
 #>
 
 $Resource = "deviceManagement/windowsAutopilotDeviceIdentities"
