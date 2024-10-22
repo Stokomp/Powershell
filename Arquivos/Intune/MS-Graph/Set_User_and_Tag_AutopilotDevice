@@ -1,0 +1,28 @@
+<#
+Criado por: Marcos Paulo Stoko
+Descrição: Script criado para atribuir tag e usuario em um ou mais dispositivos no serviço do Windows Autopilot.
+#>
+
+# Importar o módulo do Autopilot
+Import-Module WindowsAutopilotIntune
+
+# Importar o arquivo CSV
+$devices = Import-Csv -Path "C:\Users\marcos.stoko\Documents\Scripts\Tag_User\serials.csv"
+
+# Obter dispositivos e atribuir usuários e Group Tags
+foreach ($device in $devices) {
+    $serialNumber = $device.'Device Serial Number'
+    $assignedUser = $device.'Assigned User'
+    $groupTag = $device.'Group Tag'  # Adicione esta linha para o Group Tag
+
+    # Obter o ID do dispositivo
+    $autopilotDevice = Get-AutoPilotDevice -serial $serialNumber
+    if ($autopilotDevice) {
+        $deviceId = $autopilotDevice.id
+
+        # Atribuir o usuário e o Group Tag ao dispositivo
+        Set-AutoPilotDevice -id $deviceId -userPrincipalName $assignedUser -groupTag $groupTag
+    } else {
+        Write-Host "Dispositivo com serial $serialNumber não encontrado."
+    }
+}
