@@ -1,1 +1,1 @@
-Scripts criado para facilitar a gestão de dispositivos autopilot de forma massiva.
+⚠️📌 Importante: Os usuários designados para os dispositivos Autopilot devem ter a licença do Microsoft Intune ativada, caso contrário a ação não será realizada.
