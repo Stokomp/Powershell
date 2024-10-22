@@ -9,8 +9,6 @@ $Resource = "deviceManagement/managedDevices"
 $graphApiVersion = "v1.0"
 $uri = "https://graph.microsoft.com/$graphApiVersion/$($resource)"
 $authority = "https://login.microsoftonline.com/$ourTenantId"
-Update-MSGraphEnvironment -AppId $clientId -Quiet
-Update-MSGraphEnvironment -AuthUrl $authority -Quiet
 
 #Conectar ao Microsoft Graph
 Connect-MgGraph
