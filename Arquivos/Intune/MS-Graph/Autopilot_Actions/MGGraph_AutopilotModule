@@ -1,0 +1,19 @@
+<#
+Criado por Marcos Paulo Stoko
+Descrição: Script criado para configurar o módulo do Microsoft Graph para Windows Autopilot.
+#>
+
+
+# Instalar o módulo, se ainda não estiver instalado
+if (-not (Get-Module -ListAvailable -Name WindowsAutopilotIntune)) {
+    Install-Module -Name WindowsAutopilotIntune -Force
+}
+
+# Importar o módulo
+Import-Module WindowsAutopilotIntune
+
+# Conectar ao Microsoft Graph
+Connect-MGGraph
+
+# Verificar a conexão funcionou, o comando abaixo ira listar os dispositivos Autopilot.
+Get-AutopilotDevice
