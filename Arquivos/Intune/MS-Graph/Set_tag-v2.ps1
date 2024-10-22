@@ -4,25 +4,19 @@ Descrição: Utilize este script powershell para aplicar uma TAG espeficica em d
 Versão: 1.0
 #>
 
-$clientId = "---"
-$clientSecret = "---"
-$ourTenantId = "---"
-
 $Resource = "deviceManagement/windowsAutopilotDeviceIdentities"
 $Resource = "deviceManagement/managedDevices"
-$graphApiVersion = "Beta"
+$graphApiVersion = "v1.0"
 $uri = "https://graph.microsoft.com/$graphApiVersion/$($resource)"
 $authority = "https://login.microsoftonline.com/$ourTenantId"
 Update-MSGraphEnvironment -AppId $clientId -Quiet
 Update-MSGraphEnvironment -AuthUrl $authority -Quiet
-Connect-MSGraph -ClientSecret $clientSecret
 
-$Grouptag = "BR" #Specify the GroupTag Here
-$SerialNumbers = Get-Content -Path "SerialNumber.txt"
-
-# Conectar ao Microsoft Graph
+#Conectar ao Microsoft Graph
 Connect-MgGraph
 
+$Grouptag = "BTR" #Specify the GroupTag Here
+$SerialNumbers = Get-Content -Path "C:\Users\marcos.stoko\Documents\Scripts\Tag\SerialNumber.txt"
 foreach ($Serial in $SerialNumbers) {
     $AutopilotDevice = Get-AutopilotDevice -serial $Serial
     
