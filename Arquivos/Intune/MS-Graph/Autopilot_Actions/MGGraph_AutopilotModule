@@ -15,5 +15,5 @@ Import-Module WindowsAutopilotIntune
 # Conectar ao Microsoft Graph
 Connect-MGGraph
 
-# Verificar a conexão funcionou, o comando abaixo ira listar os dispositivos Autopilot.
+# Verificar a conexão funcionou. O comando abaixo ira listar os dispositivos Autopilot.
 Get-AutopilotDevice
