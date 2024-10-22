@@ -1,0 +1,28 @@
+<#
+Criado por: Marcos Paulo Stoko
+Descrição: Script criado para atribuir um ou mais usuarios em diversos dispositivos cadastrados no Autopilot.
+#>
+
+
+# Importar o módulo do Autopilot
+Import-Module WindowsAutopilotIntune
+
+# Importar o arquivo CSV
+$devices = Import-Csv -Path "C:\Users\marcos.stoko\Documents\Scripts\Tag_User\serials.csv"
+
+# Obter dispositivos e atribuir usuários
+foreach ($device in $devices) {
+    $serialNumber = $device.'Device Serial Number'
+    $assignedUser = $device.'Assigned User'
+
+    # Obter o ID do dispositivo
+    $autopilotDevice = Get-AutoPilotDevice -serial $serialNumber
+    if ($autopilotDevice) {
+        $deviceId = $autopilotDevice.id
+
+        # Atribuir o usuário ao dispositivo
+        Set-AutoPilotDevice -id $deviceId -userPrincipalName $assignedUser
+    } else {
+        Write-Host "Dispositivo com serial $serialNumber não encontrado."
+    }
+}
