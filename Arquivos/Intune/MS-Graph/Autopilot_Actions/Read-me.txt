@@ -1,0 +1,1 @@
+Scripts criado para facilitar a gestão de dispositivos autopilot de forma massiva.
