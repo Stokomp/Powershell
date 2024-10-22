@@ -8,7 +8,7 @@ $Resource = "deviceManagement/windowsAutopilotDeviceIdentities"
 $Resource = "deviceManagement/managedDevices"
 $graphApiVersion = "v1.0"
 $uri = "https://graph.microsoft.com/$graphApiVersion/$($resource)"
-$authority = "https://login.microsoftonline.com/$ourTenantId"
+#$authority = "https://login.microsoftonline.com/$ourTenantId"
 
 #Conectar ao Microsoft Graph
 Connect-MgGraph
