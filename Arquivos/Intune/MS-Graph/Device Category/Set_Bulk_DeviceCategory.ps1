@@ -1,7 +1,7 @@
 <#
 
 Criado por: Marcos Paulo Stoko
-Descrição: Utilize este script powershell para aplicar uma categoria espeficica em dispositivos ingressados no Intune. Obrigatorio criar a categoria no Intune para o script funcionar, 
+Descrição: Utilize este script powershell para aplicar uma categoria espeficica em dispositivos ingressados no Intune. Obrigatorio criar a categoria primeiro no Intune para o script funcionar, 
 pois, o script fara a validacao da categoria e aplicara se ela existir.
 Versão: 1.0
 
