@@ -13,10 +13,7 @@ function Capturar-HashDoHardware {
 
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        New-Item -Type Directory -Path "C:\HWID" -Force
         Set-Location -Path "C:\HWID"
-        $env:Path += ";C:\Program Files\WindowsPowerShell\Scripts"
-        Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
         Install-Script -Name Get-WindowsAutopilotInfo -Force
         Get-WindowsAutopilotInfo -OutputFile AutopilotHWID.csv
         return "Hash do hardware capturado e salvo em C:\HWID\AutopilotHWID.csv"
@@ -27,9 +24,7 @@ function Capturar-HashDoHardware {
 
 # Função para gravar a TAG digitada
 function Gravar-Tag {
-    param (
-        [string]$Tag
-    )
+    param ([string]$Tag)
     $global:GroupTag = $Tag
     return "TAG '$Tag' gravada com sucesso."
 }
@@ -64,25 +59,42 @@ function Criar-AutopilotImportCSV {
     }
 }
 
-# Criar a interface gráfica
+# Criar a interface gráfica moderna
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Autopilot Import GUI" Height="500" Width="600" WindowStartupLocation="CenterScreen">
-    <Grid Background="#011E38">
+        Title="Autopilot Import GUI" Height="550" Width="600" WindowStartupLocation="CenterScreen">
+    <Grid Background="#20232A">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock Text="Autopilot Import GUI" FontSize="20" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" Margin="10"/>
-            <TextBlock Text="Device Information" FontSize="16" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" Margin="10"/>
-            <TextBlock Name="DeviceModelTextBlock" Text="Device Model:" Foreground="White" FontWeight="Bold" Margin="5"/>
-            <TextBlock Name="DeviceNameTextBlock" Text="Device Name:" Foreground="White" FontWeight="Bold" Margin="5"/>
-            <TextBlock Name="ManufacturerTextBlock" Text="Manufacturer:" Foreground="White" FontWeight="Bold" Margin="5"/>
-            <TextBlock Name="SerialNumberTextBlock" Text="Serial Number:" Foreground="White" FontWeight="Bold" Margin="5"/>
-            <Button Name="ExportHashButton" Content="Export Hash to CSV" Background="#FFBC82" Foreground="Black" Margin="10"/>
-            <TextBlock x:Name="ResultadoTextBlock" Foreground="White" Margin="10"/>
-            <TextBlock Text="Group Tag" FontSize="16" Foreground="White" FontWeight="Bold" Margin="10"/>
-            <TextBox Name="GroupTagTextBox" Width="200" Margin="5"/>
-            <Button Name="SaveTagButton" Content="Save Group Tag" Background="#FFBC82" Foreground="Black" Margin="10"/>
-            <Button Name="GenerateAutopilotFileButton" Content="Generate Autopilot CSV" Background="#FFBC82" Foreground="Black" Margin="10"/>
+            <TextBlock Text="Autopilot Import GUI" FontSize="22" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" Margin="10"/>
+            
+            <Border BorderBrush="#FFBC82" BorderThickness="2" CornerRadius="10" Padding="10" Margin="10">
+                <StackPanel>
+                    <TextBlock Text="TAGs Permitidas:" FontSize="16" Foreground="White" FontWeight="Bold"/>
+                    <TextBlock Text="1 - OMSBR" Foreground="LightGray"/>
+                    <TextBlock Text="2 - OMBRESP" Foreground="LightGray"/>
+                    <TextBlock Text="3 - OMSCOL" Foreground="LightGray"/>
+                </StackPanel>
+            </Border>
+            
+            <Button Name="ExportHashButton" Content="1 - Export Hash to CSV" Background="#FFBC82" Foreground="Black" Margin="5"/>
+            <TextBlock Name="ResultadoTextBlock" Foreground="White" Margin="10"/>
+            
+            <Border BorderBrush="#FFBC82" BorderThickness="2" CornerRadius="10" Padding="10" Margin="10">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
+                    <TextBlock Text="TAG:" FontSize="16" Foreground="White" FontWeight="Bold" Margin="5" VerticalAlignment="Center"/>
+                    <TextBox Name="GroupTagTextBox" Width="100" Margin="5"/>
+                </StackPanel>
+            </Border>
+            
+            <Border BorderBrush="#FFBC82" BorderThickness="2" CornerRadius="10" Padding="10" Margin="10">
+                <Button Name="SaveTagButton" Content="2 - Save Group Tag" Background="#FFBC82" Foreground="Black" Margin="5"/>
+            </Border>
+            
+            <Button Name="GenerateAutopilotFileButton" Content="3 - Generate Autopilot CSV" Background="#FFBC82" Foreground="Black" Margin="5"/>
+            
+            <!-- Botão Exit -->
+            <Button Name="ExitButton" Content="Exit" Background="Red" Foreground="White" Margin="5" HorizontalAlignment="Center"/>
         </StackPanel>
     </Grid>
 </Window>
@@ -91,23 +103,6 @@ function Criar-AutopilotImportCSV {
 # Carregar o XAML
 $reader = (New-Object System.Xml.XmlNodeReader $xaml)
 $window = [Windows.Markup.XamlReader]::Load($reader)
-
-# Obter informações do dispositivo
-function Obter-InformacoesDoDispositivo {
-    $info = @{
-        DeviceModel = (Get-WmiObject -Class Win32_ComputerSystem).Model
-        DeviceName = (Get-WmiObject -Class Win32_ComputerSystem).Name
-        Manufacturer = (Get-WmiObject -Class Win32_ComputerSystem).Manufacturer
-        SerialNumber = (Get-WmiObject -Class Win32_BIOS).SerialNumber
-    }
-    return $info
-}
-
-$info = Obter-InformacoesDoDispositivo
-$window.FindName("DeviceModelTextBlock").Text += " $($info.DeviceModel)"
-$window.FindName("DeviceNameTextBlock").Text += " $($info.DeviceName)"
-$window.FindName("ManufacturerTextBlock").Text += " $($info.Manufacturer)"
-$window.FindName("SerialNumberTextBlock").Text += " $($info.SerialNumber)"
 
 # Adicionar eventos aos botões
 $window.FindName("ExportHashButton").Add_Click({
@@ -125,6 +120,11 @@ $window.FindName("SaveTagButton").Add_Click({
 
 $window.FindName("GenerateAutopilotFileButton").Add_Click({
     $window.FindName("ResultadoTextBlock").Text = Criar-AutopilotImportCSV
+})
+
+# Evento para o botão Exit
+$window.FindName("ExitButton").Add_Click({
+    $window.Close()
 })
 
 # Mostrar a janela
