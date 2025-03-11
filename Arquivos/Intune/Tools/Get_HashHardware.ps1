@@ -1,5 +1,10 @@
 Add-Type -AssemblyName PresentationFramework
 
+# Instalar o módulo Microsoft.Graph.DeviceManagement.Enrollment se não estiver instalado
+if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.DeviceManagement.Enrollment)) {
+    Install-Module Microsoft.Graph.DeviceManagement.Enrollment -Scope CurrentUser -Force
+}
+
 # Variável global para armazenar a TAG digitada
 $global:GroupTag = ""
 
@@ -45,11 +50,15 @@ function Criar-AutopilotImportCSV {
         foreach ($row in $csvContent) {
             $csvFormatted += [PSCustomObject]@{
                 "Device Serial Number" = $row."Device Serial Number"
-                "Windows Product ID" = $row."Windows Product ID"
-                "Hardware Hash" = $row."Hardware Hash"
-                "Group Tag" = $global:GroupTag
-                "Assigned User" = ""
+                "Windows Product ID"   = $row."Windows Product ID"
+                "Hardware Hash"        = $row."Hardware Hash"
+                "Group Tag"            = $global:GroupTag
+                "Assigned User"        = ""
             }
+        }
+        
+        if (!(Test-Path "C:\temp")) {
+            New-Item -Path "C:\temp" -ItemType Directory -Force
         }
         
         $csvFormatted | Export-Csv -Path $OutputFile -NoTypeInformation -Delimiter ","
@@ -59,7 +68,50 @@ function Criar-AutopilotImportCSV {
     }
 }
 
-# Criar a interface gráfica moderna
+# Função para autenticar no Microsoft Graph
+function Autenticar-MicrosoftGraph {
+    Connect-MgGraph -Scopes "DeviceManagementServiceConfig.ReadWrite.All"
+}
+
+# Função para importar dispositivos via API do Microsoft Graph
+function Importar-DispositivosAutopilotViaAPI {
+    $csvFile = "C:\temp\AutopilotImport.csv"
+    if (!(Test-Path $csvFile)) {
+        return "Erro: Arquivo AutopilotImport.csv não encontrado."
+    }
+
+    try {
+        Autenticar-MicrosoftGraph
+        Import-Module Microsoft.Graph.DeviceManagement.Enrollment
+
+        $csvContent = Import-Csv $csvFile
+
+        foreach ($row in $csvContent) {
+            $params = @{
+                "@odata.type" = "#microsoft.graph.importedWindowsAutopilotDeviceIdentity"
+                groupTag = $row."Group Tag"
+                serialNumber = $row."Device Serial Number"
+                productKey = $row."Windows Product ID"
+                hardwareIdentifier = [System.Convert]::FromBase64String($row."Hardware Hash")
+                assignedUserPrincipalName = $row."Assigned User"
+            }
+
+            try {
+                $response = New-MgDeviceManagementImportedWindowsAutopilotDeviceIdentity -BodyParameter $params
+                Write-Host "Dispositivo importado com sucesso: $($response | ConvertTo-Json -Depth 3)"
+            } catch {
+                Write-Host "Erro ao importar dispositivo: $_"
+            }
+        }
+        
+        return "Processo de importação concluído."
+    }
+    catch {
+        return "Erro ao importar dispositivos via API: $_"
+    }
+}
+
+# Criar interface gráfica
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -93,7 +145,8 @@ function Criar-AutopilotImportCSV {
             
             <Button Name="GenerateAutopilotFileButton" Content="3 - Generate Autopilot CSV" Background="#FFBC82" Foreground="Black" Margin="5"/>
             
-            <!-- Botão Exit -->
+            <Button Name="ImportDevicesButton" Content="4 - Import Devices via API" Background="#FFBC82" Foreground="Black" Margin="5"/>
+            
             <Button Name="ExitButton" Content="Exit" Background="Red" Foreground="White" Margin="5" HorizontalAlignment="Center"/>
         </StackPanel>
     </Grid>
@@ -104,28 +157,12 @@ function Criar-AutopilotImportCSV {
 $reader = (New-Object System.Xml.XmlNodeReader $xaml)
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
-# Adicionar eventos aos botões
-$window.FindName("ExportHashButton").Add_Click({
-    $window.FindName("ResultadoTextBlock").Text = Capturar-HashDoHardware
-})
-
-$window.FindName("SaveTagButton").Add_Click({
-    $Tag = $window.FindName("GroupTagTextBox").Text
-    if (-not $Tag) {
-        $window.FindName("ResultadoTextBlock").Text = "Group Tag é obrigatória."
-    } else {
-        $window.FindName("ResultadoTextBlock").Text = Gravar-Tag -Tag $Tag
-    }
-})
-
-$window.FindName("GenerateAutopilotFileButton").Add_Click({
-    $window.FindName("ResultadoTextBlock").Text = Criar-AutopilotImportCSV
-})
-
-# Evento para o botão Exit
-$window.FindName("ExitButton").Add_Click({
-    $window.Close()
-})
+# Eventos dos botões
+$window.FindName("ExportHashButton").Add_Click({ $window.FindName("ResultadoTextBlock").Text = Capturar-HashDoHardware })
+$window.FindName("SaveTagButton").Add_Click({ $window.FindName("ResultadoTextBlock").Text = Gravar-Tag -Tag $window.FindName("GroupTagTextBox").Text })
+$window.FindName("GenerateAutopilotFileButton").Add_Click({ $window.FindName("ResultadoTextBlock").Text = Criar-AutopilotImportCSV })
+$window.FindName("ImportDevicesButton").Add_Click({ $window.FindName("ResultadoTextBlock").Text = Importar-DispositivosAutopilotViaAPI })
+$window.FindName("ExitButton").Add_Click({ $window.Close() })
 
 # Mostrar a janela
 $window.ShowDialog() | Out-Null
