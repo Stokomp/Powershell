@@ -1,50 +1,95 @@
-# Define as informações de autenticação do aplicativo no Azure AD
+﻿<#
+.DESCRIÇÃO
+Este script utiliza a API do Microsoft Graph para verificar se o usuário atualmente logado no Windows é o usuário primário do dispositivo gerenciado no Microsoft Intune.
+
+.FUNCIONAMENTO
+1. Obtém um token de autenticação no Azure AD utilizando as credenciais do aplicativo.
+2. Captura o SAM Account Name do usuário logado no Windows.
+3. Consulta o usuário no Microsoft Graph para obter o On-Premises User Principal Name (UPN).
+4. Busca o dispositivo no Intune com base no hostname do computador.
+5. Verifica se o UPN do usuário logado corresponde ao usuário primário registrado no dispositivo.
+6. Exibe uma mensagem informando se o usuário logado é ou não o usuário primário do dispositivo.
+
+.PRÉ-REQUISITOS
+- O dispositivo deve estar registrado no Intune.
+- O usuário deve existir no Azure AD com um On-Premises SAM Account Name registrado.
+- O aplicativo no Azure AD deve ter as seguintes permissões concedidas na Microsoft Graph API:
+  1. `Device.Read.All` - Permite leitura de dispositivos gerenciados.
+  2. `User.Read.All` - Permite leitura de informações dos usuários.
+  3. `DeviceManagementManagedDevices.Read.All` - Permite consultar dispositivos no Intune.
+
+.EXECUÇÃO
+- O script retorna `Exit 0` se o usuário logado for o usuário primário do dispositivo.
+- Caso contrário, retorna `Exit 1`.
+
+.NOTAS
+- O tempo para refletir mudanças no Intune pode variar.
+- Erros de autenticação podem ocorrer caso as credenciais estejam incorretas ou sem permissões adequadas.
+#>
+
+# Defina as informações de autenticação
 $TenantId     = ""
 $ClientId     = ""
 $ClientSecret = ""
 
-# URL de autenticação
-$authUrl = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token"
-
-# Corpo da solicitação de autenticação
+# Obter token de acesso
 $body = @{
     grant_type    = "client_credentials"
+    scope         = "https://graph.microsoft.com/.default"
     client_id     = $ClientId
     client_secret = $ClientSecret
-    scope         = "https://graph.microsoft.com/.default"
 }
+$response = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
+                              -ContentType "application/x-www-form-urlencoded" -Body $body
+$token = $response.access_token
 
-# Obtém o token de acesso
-$tokenResponse = Invoke-RestMethod -Method Post -Uri $authUrl -Body $body
-$accessToken = $tokenResponse.access_token
-
-# Define o cabeçalho de autorização
 $headers = @{
-    "Authorization" = "Bearer $accessToken"
+    Authorization = "Bearer $token"
+    "Content-Type" = "application/json"
 }
 
-# Obtém o nome do usuário conectado
-$loggedInUser = (Get-WmiObject -Class Win32_ComputerSystem).UserName
-
-# Remove o prefixo do domínio para obter o nome de usuário
+# Obtém usuário logado e extrai o SAM Account Name
+$loggedInUser = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName
 $loggedInUserName = $loggedInUser.Split('\')[1]
 
-# URL para listar dispositivos gerenciados
+# Buscar usuário no Microsoft Graph pelo SAM Account Name
+$userUrl = "https://graph.microsoft.com/v1.0/users?`$select=id,displayName,userPrincipalName,onPremisesSamAccountName,onPremisesUserPrincipalName"
+$userResponse = Invoke-RestMethod -Uri $userUrl -Headers $headers
+
+$user = $userResponse.value | Where-Object { $_.onPremisesSamAccountName -eq $loggedInUserName }
+
+if ($user) {
+    $newUserObjectId = $user.id
+    $newUserUPN = $user.onPremisesUserPrincipalName
+    Write-Output "Usuário encontrado: $newUserObjectId, UPN: $newUserUPN"
+} else {
+    Write-Output "Usuário não encontrado no Azure AD."
+    exit
+}
+
+# Buscar dispositivo no Intune pelo hostname
 $deviceUrl = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-
-# Obtém a lista de dispositivos
 $deviceResponse = Invoke-RestMethod -Uri $deviceUrl -Headers $headers
-
-# Filtra o dispositivo específico pelo nome do host
 $device = $deviceResponse.value | Where-Object { $_.deviceName -eq $(hostname) }
 
-# Verifica se o userDisplayName do usuário conectado é o usuário primário no Intune
-if ($device.userDisplayName -eq $loggedInUserName) {
-    Write-Output "O usuário conectado é o usuário primário no Intune."
-    Exit 0
-    Disconnect-MgGraph -ErrorAction SilentlyContinue
+if ($device) {
+    $deviceId = $device.id
+    Write-Output "Dispositivo encontrado: $deviceId"
 } else {
-    Write-Output "O usuário conectado não é o usuário primário no Intune."
-    Exit 1
-    Disconnect-MgGraph -ErrorAction SilentlyContinue
+    Write-Output "Dispositivo não encontrado no Intune."
+    
 }
+
+# Verificar se o usuário logado é o usuário primário do dispositivo
+$primaryUserUrl = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$deviceId')/users"
+$primaryUserResponse = Invoke-RestMethod -Uri $primaryUserUrl -Headers $headers
+
+$primaryUser = $primaryUserResponse.value | Where-Object { $_.userPrincipalName -eq $newUserUPN }
+
+if ($primaryUser) {
+    Write-Output "Usuário logado é o usuário primário do dispositivo."
+    Exit 0
+} else {
+    Write-Output "Usuário logado não é o usuário primário do dispositivo."
+    Exit 1
+    }
