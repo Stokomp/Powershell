@@ -1,4 +1,4 @@
-<##
+<#
 .DESCRIPTION
     Este script PowerShell automatiza a atualização de um atributo personalizado em um dispositivo no Microsoft Entra ID.
     Ele obtém um token de acesso usando as credenciais fornecidas, e utiliza esse token para enviar uma requisição PATCH ao Microsoft Graph API, atualizando o atributo especificado.
