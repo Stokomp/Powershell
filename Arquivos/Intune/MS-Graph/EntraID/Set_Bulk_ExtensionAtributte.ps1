@@ -1,7 +1,32 @@
 ﻿<#
-Criado por: Marcos Paulo Stoko
-Descrição: Utilize este script powershell para aplicar um atributo espeficico em dispositivos via ObjectID.
-Versão: 1.0
+.DESCRIPTION
+    Funcionamento do Script:
+    
+    Configurações Iniciais:
+    - Define o TenantId, ClientId e ClientSecret para autenticação no Microsoft Graph.
+    - Especifica o caminho do arquivo contendo os ObjectIds dos dispositivos e o valor do atributo personalizado a ser aplicado.
+    
+    Autenticação no Microsoft Graph:
+    - Obtém um token de acesso usando o fluxo de credenciais de cliente (client_credentials).
+    - O token é usado para autenticar as requisições à API do Microsoft Graph.
+    
+    Preparação do Corpo da Requisição:
+    - Cria o corpo da requisição JSON contendo o valor do atributo de extensão a ser atualizado.
+    
+    Leitura do Arquivo de Dispositivos:
+    - Lê os ObjectIds dos dispositivos a partir de um arquivo de texto.
+    
+    Atualização dos Atributos:
+    - Para cada ObjectId no arquivo, envia uma requisição PATCH para atualizar o atributo de extensão no dispositivo correspondente.
+    - Exibe mensagens de sucesso ou erro para cada dispositivo.
+
+.PERMISSÕES
+
+    Permissões Necessárias:
+    - Device.ReadWrite.All: Permite ler e atualizar objetos de dispositivos no diretório.
+    - Directory.ReadWrite.All: Permite ler e escrever dados do diretório, incluindo atributos de extensão.
+    - Essas permissões devem ser atribuídas à aplicação registrada no Azure AD (identificada pelo $ClientId) e requerem consentimento administrativo.
+
 #>
 
 
