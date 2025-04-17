@@ -21,11 +21,13 @@
     - Exibe mensagens de sucesso ou erro para cada dispositivo.
 
 .NOTES
-
     Permissões Necessárias:
     - Device.ReadWrite.All: Permite ler e atualizar objetos de dispositivos no diretório.
     - Directory.ReadWrite.All: Permite ler e escrever dados do diretório, incluindo atributos de extensão.
     - Essas permissões devem ser atribuídas à aplicação registrada no Azure AD (identificada pelo $ClientId) e requerem consentimento administrativo.
+    
+    Autor: Marcos Paulo Stoko
+    Data: 17.04.2025
 
 #>
 
