@@ -20,7 +20,7 @@
     - Para cada ObjectId no arquivo, envia uma requisição PATCH para atualizar o atributo de extensão no dispositivo correspondente.
     - Exibe mensagens de sucesso ou erro para cada dispositivo.
 
-.PERMISSÕES
+.NOTES
 
     Permissões Necessárias:
     - Device.ReadWrite.All: Permite ler e atualizar objetos de dispositivos no diretório.
