@@ -23,7 +23,11 @@
     PS> .\SeuScript.ps1 -TenantId "KK723420-7a5a-46f2-a44L-ab98d49bd815" -ClientId "2c6d525e-5513-5uk1-00a8-c46bf5f3cd80" -ClientSecret "AS08asdscfeudud01abpSTpB9eilMV66SOqwoapxmbc7Y" -CustomExtensionValue "ABC" -DeviceObjectId "b09bd58f-4W4a-45e7-8fb1-f030985w3121"
 
 .NOTES
-    Este script requer permissões adequadas no Azure AD e no Microsoft Graph API.
+    Permissões Necessárias:
+    - Device.ReadWrite.All: Permite ler e atualizar objetos de dispositivos no diretório.
+    - Directory.ReadWrite.All: Permite ler e escrever dados do diretório, incluindo atributos de extensão.
+    - Essas permissões devem ser atribuídas à aplicação registrada no Azure AD (identificada pelo $ClientId) e requerem consentimento administrativo.
+    
     Autor: Marcos Paulo Stoko
     Data: 17.04.2025
 #>
