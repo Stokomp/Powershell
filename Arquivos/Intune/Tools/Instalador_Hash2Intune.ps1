@@ -11,7 +11,7 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 try {
     $AppName = "Hash2Intune"
     $AppVersion = "1.0" # Defina a versão da sua aplicação
-    $CompanyName = "UEM"
+    $CompanyName = "OMS"
     $MainAppScriptName = "Hash2Intune.ps1" # Nome do arquivo .ps1 da sua aplicação GUI
     $IconName = "favicon.ico" 
     $ShortcutName = "$AppName.lnk" # Nome do atalho
