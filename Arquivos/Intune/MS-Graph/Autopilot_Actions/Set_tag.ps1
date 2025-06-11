@@ -1,7 +1,51 @@
 <#
-Criado por: Marcos Paulo Stoko
-Descrição: Utilize este script powershell para aplicar uma TAG espeficica em dispositivos via número de série.
-Versão do Microsoft Graph: 1.0
+.Synopsis
+Script Name:    Set-AutopilotGroupTagBySerial.ps1
+Author:         Marcos Paulo Stoko
+Descrição:      
+    Este script utiliza o Microsoft Graph para aplicar uma Group Tag (Tag de Grupo) 
+    personalizada em dispositivos Windows Autopilot com base em seus números de série. 
+
+    O script realiza as seguintes ações:
+    - Lê uma lista de números de série de um arquivo .txt.
+    - Busca os dispositivos Autopilot associados a esses números de série via Microsoft Graph.
+    - Define ou atualiza a Group Tag para cada dispositivo encontrado.
+
+Pré-requisitos:
+    - PowerShell 5.1+ ou PowerShell Core.
+    - Módulo Microsoft.Graph instalado.
+        Instale com: Install-Module Microsoft.Graph -Scope CurrentUser
+    - Permissões corretas (veja abaixo).
+    - Lista de números de série no arquivo SerialNumber.txt (um por linha).
+
+Autenticação:
+    - O script usa autenticação interativa com o comando Connect-MgGraph.
+    - Você será solicitado a fazer login com uma conta que tenha permissões suficientes no Intune/MEM.
+
+Permissões necessárias (Microsoft Graph Scopes):
+    Para que o script funcione corretamente, a conta usada para autenticação precisa dos seguintes escopos:
+
+    Delegated Permissions (via login interativo):
+        - DeviceManagementServiceConfig.ReadWrite.All
+        - DeviceManagementManagedDevices.ReadWrite.All
+
+    Application Permissions (caso esteja usando autenticação por aplicativo):
+        - As mesmas permissões acima, com consentimento administrativo aplicado.
+
+    Estes escopos permitem:
+        - Ler e atualizar informações de dispositivos Windows Autopilot.
+        - Atribuir ou alterar a propriedade "groupTag" dos dispositivos.
+
+API Utilizadas:
+    - GET https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities
+    - PATCH https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities/{id}
+
+Importante:
+    - O script faz validação básica para garantir que os dispositivos retornados possuam o número de série.
+    - Caso um número de série não seja encontrado ou o objeto retornado seja inválido, ele será ignorado.
+
+Versão da API Microsoft Graph:
+    - v1.0
 #>
 
 $Resource = "deviceManagement/windowsAutopilotDeviceIdentities"
