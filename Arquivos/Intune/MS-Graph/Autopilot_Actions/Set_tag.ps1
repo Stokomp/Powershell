@@ -1,52 +1,54 @@
 <#
-.Synopsis
-Script Name:    Set-AutopilotGroupTagBySerial.ps1
-Author:         Marcos Paulo Stoko
-Descrição:      
-    Este script utiliza o Microsoft Graph para aplicar uma Group Tag (Tag de Grupo) 
-    personalizada em dispositivos Windows Autopilot com base em seus números de série. 
+.SYNOPSIS
+Aplica uma Group Tag (Tag de Grupo) personalizada a dispositivos Autopilot com base em seus números de série.
 
-    O script realiza as seguintes ações:
-    - Lê uma lista de números de série de um arquivo .txt.
-    - Busca os dispositivos Autopilot associados a esses números de série via Microsoft Graph.
-    - Define ou atualiza a Group Tag para cada dispositivo encontrado.
+.DESCRIPTION
+Este script lê uma lista de números de série de um arquivo de texto e, para cada número de série, localiza o dispositivo correspondente no Windows Autopilot usando a API do Microsoft Graph. 
+Em seguida, define ou atualiza a propriedade "groupTag" do dispositivo com o valor especificado.
 
-Pré-requisitos:
-    - PowerShell 5.1+ ou PowerShell Core.
-    - Módulo Microsoft.Graph instalado.
-        Instale com: Install-Module Microsoft.Graph -Scope CurrentUser
-    - Permissões corretas (veja abaixo).
-    - Lista de números de série no arquivo SerialNumber.txt (um por linha).
+O script utiliza autenticação interativa por meio do comando Connect-MgGraph e requer permissões específicas para funcionar corretamente.
 
-Autenticação:
-    - O script usa autenticação interativa com o comando Connect-MgGraph.
-    - Você será solicitado a fazer login com uma conta que tenha permissões suficientes no Intune/MEM.
+.EXAMPLE
+.\Set_tag.ps1
 
-Permissões necessárias (Microsoft Graph Scopes):
-    Para que o script funcione corretamente, a conta usada para autenticação precisa dos seguintes escopos:
+Executa o script utilizando os números de série contidos no arquivo 'SerialNumber.txt' e define a Group Tag "BTR" para os dispositivos encontrados.
 
-    Delegated Permissions (via login interativo):
-        - DeviceManagementServiceConfig.ReadWrite.All
-        - DeviceManagementManagedDevices.ReadWrite.All
+.PARAMETER SerialNumber.txt
+Arquivo de texto contendo uma lista de números de série, um por linha.
 
-    Application Permissions (caso esteja usando autenticação por aplicativo):
-        - As mesmas permissões acima, com consentimento administrativo aplicado.
+.NOTES
+Autor: Marcos Paulo Stoko  
+Data da última modificação: 11/06/2025  
+Versão da API Graph: v1.0
 
-    Estes escopos permitem:
-        - Ler e atualizar informações de dispositivos Windows Autopilot.
-        - Atribuir ou alterar a propriedade "groupTag" dos dispositivos.
+.REQUIREMENTS
+- PowerShell 5.1 ou superior (ou PowerShell Core)
+- Módulo Microsoft.Graph instalado:
+    Install-Module Microsoft.Graph -Scope CurrentUser
+- Permissões adequadas para executar chamadas à API do Microsoft Graph
 
-API Utilizadas:
-    - GET https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities
-    - PATCH https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities/{id}
+.PERMISSIONS
+Permissões necessárias no Microsoft Graph:
 
-Importante:
-    - O script faz validação básica para garantir que os dispositivos retornados possuam o número de série.
-    - Caso um número de série não seja encontrado ou o objeto retornado seja inválido, ele será ignorado.
+Delegated (via login interativo com Connect-MgGraph):
+    - DeviceManagementServiceConfig.ReadWrite.All
+    - DeviceManagementManagedDevices.ReadWrite.All
 
-Versão da API Microsoft Graph:
-    - v1.0
+Application (caso use autenticação por app registration):
+    - As mesmas permissões acima, com consentimento administrativo (admin consent)
+
+.FUNCTIONALITY
+Este script interage com os seguintes endpoints do Microsoft Graph:
+- GET  deviceManagement/windowsAutopilotDeviceIdentities
+- PATCH deviceManagement/windowsAutopilotDeviceIdentities/{id}
+
+O objetivo é atribuir automaticamente a propriedade "groupTag" nos dispositivos Autopilot, com base nos números de série informados.
+
+.LINK
+https://learn.microsoft.com/en-us/graph/api/resources/intune-enrollment-windowsautopilotdeviceidentity
+https://learn.microsoft.com/en-us/powershell/microsoftgraph/overview
 #>
+
 
 $Resource = "deviceManagement/windowsAutopilotDeviceIdentities"
 $Resource = "deviceManagement/managedDevices"
