@@ -1,0 +1,50 @@
+<#
+Criado por: Marcos Paulo
+
+Para checar se o dispopsitivo foi excluido execute o script abaixo:
+
+$Serial = "COLOQUE AQUI O SERIAL NUMBER"
+
+$CheckDevice = Get-MgDeviceManagementWindowsAutopilotDeviceIdentity -Filter "contains(serialNumber,'$Serial')"
+
+if ($CheckDevice) {
+    Write-Host "Ainda existe no Autopilot: $($CheckDevice.serialNumber)" -ForegroundColor Yellow
+} else {
+    Write-Host "Não encontrado no Autopilot — removido com sucesso!" -ForegroundColor Green
+}
+
+
+#>
+
+# Assume que você já está conectado ao MSGraph
+Connect-MgGraph -Scopes "DeviceManagementServiceConfig.ReadWrite.All"
+
+$SerialNumbers = Get-Content "C:\temp\Devices\SerialNumber.txt"
+
+foreach ($Serial in $SerialNumbers) {
+
+    Write-Host ""
+    Write-Host "Procurando dispositivo com Serial: $Serial ..." -ForegroundColor Cyan
+    
+    $AutopilotDevice = Get-AutopilotDevice -serial $Serial -ErrorAction SilentlyContinue
+    
+    if (!$AutopilotDevice) {
+        Write-Host "Nenhum dispositivo encontrado com o serial $Serial" -ForegroundColor Yellow
+        continue
+    }
+
+    foreach ($device in $AutopilotDevice) {
+        Write-Host "Encontrado: $($device.serialNumber) (Tag: $($device.groupTag))"
+        
+        Write-Host "Removendo do Autopilot: $($device.serialNumber)..." -ForegroundColor Yellow
+        
+        try {
+            Remove-AutopilotDevice -id $device.id -ErrorAction Stop
+            Write-Host "Sucesso! Dispositivo removido do Autopilot." -ForegroundColor Green
+        }
+        catch {
+            Write-Host "Erro ao remover o dispositivo: $($device.serialNumber)" -ForegroundColor Red
+            Write-Host $_.Exception.Message
+        }
+    }
+}
