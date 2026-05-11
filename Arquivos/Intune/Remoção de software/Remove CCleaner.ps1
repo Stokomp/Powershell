@@ -1,73 +1,88 @@
 <#
 .SYNOPSIS
-    GB Enrollment Booster V5.0 - O Guardião da Identidade.
-    Foco: Superar a latência do HAADJ e forçar PRT/Windows Hello.
+    GB Deployment Script - Identity Booster Manual Setup.
 .DESCRIPTION
-    Monitora o dsregcmd até que o registro Hybrid apareça e força a interação do usuário.
+    Este script prepara o ambiente local, criando a estrutura de arquivos, 
+    atalho e a tarefa agendada autolimpante.
 #>
 [CmdletBinding()]
 param()
 
-# --- CONFIGURAÇÕES DE IDENTIDADE VISUAL GB ---
-$GB_Blue = "#011E38"
-$GB_OffWhite = "#F5F1EB"
-
-function Show-GBNotification {
-    param([string]$Message)
-    # Aqui poderíamos disparar um Toast via BurntToast ou um simples popup estilizado
-    # Para máxima compatibilidade sem módulos extras, usaremos o shell de sistema
-    $wshell = New-Object -ComObject WScript.Shell
-    $wshell.Popup($Message, 10, "Grupo Boticário - Finalizando Configuração", 64)
-}
-
 process {
     try {
-        Write-Host "[1/4] Ativando Notificações de Sistema..." -ForegroundColor Cyan
-        $RegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings"
-        if (!(Test-Path $RegPath)) { New-Item -Path $RegPath -Force | Out-Null }
-        Set-ItemProperty -Path $RegPath -Name "NOC_GLOBAL_SETTING_TOASTS_ENABLED" -Value 1 -Force
+        Write-Host "--- Iniciando Setup de Identidade GB ---" -ForegroundColor Cyan
 
-        Write-Host "[2/4] Iniciando Monitoramento de Identidade (Loop de 5 min)..." -ForegroundColor Cyan
-        $ready = $false
-        $timer = [System.Diagnostics.Stopwatch]::StartNew()
+        # 1. Definição de Caminhos e Variáveis
+        $Folder = "C:\ProgramData\GB"
+        $ScriptPath = "$Folder\IntuneJoin.ps1"
+        $ConfigPath = "$Folder\Booster.xml"
+        $ShortcutName = "Finalizar Configuração GB.lnk"
+        $PublicDesktop = [Environment]::GetFolderPath("PublicDesktop")
 
-        while ($timer.Elapsed.TotalMinutes -lt 5 -and !$ready) {
-            $dsreg = dsregcmd /status
-            $isHybrid = $dsreg | Select-String "AzureAdJoined : YES"
-            $hasPrt = $dsreg | Select-String "AzureAdPrt : YES"
-
-            if ($isHybrid -and !$hasPrt) {
-                Write-Host "[!] Dispositivo detectado no Entra ID, mas PRT ausente. Forçando Login..." -ForegroundColor Yellow
-                
-                # Interface GB para o usuário
-                Show-GBNotification -Message "Olá! Estamos finalizando a configuração do seu ambiente para Épocas Especiais. Uma janela de login poderá aparecer, por favor, autentique-se."
-
-                # O segredo: Invocação da URI que força o Broker de Autenticação (WAM)
-                # Esta URI é mais eficaz que o DeviceEnroller para "acordar" o PRT
-                Start-Process "ms-settings:workplace-repairtoken"
-                
-                # Aguarda o usuário interagir e tenta o sync de apps
-                Start-Sleep -Seconds 30
-                & "C:\Windows\system32\deviceenroller.exe" /mobilepolicysync
-                $ready = $true
-            }
-            elseif ($isHybrid -and $hasPrt) {
-                Write-Host "[OK] Identidade íntegra. Sincronizando políticas..." -ForegroundColor Green
-                & "C:\Windows\system32\deviceenroller.exe" /mobilepolicysync
-                $ready = $true
-            }
-            else {
-                Write-Host "...Aguardando sincronismo do AD Connect (60s)..."
-                Start-Sleep -Seconds 60
-            }
+        # 2. Criação da Estrutura de Pastas
+        if (!(Test-Path $Folder)) { 
+            New-Item -Path $Folder -ItemType Directory -Force | Out-Null
+            Write-Host "[OK] Pasta de sistema criada em $Folder" -ForegroundColor Green
         }
 
-        if (!$ready) {
-            Write-Host "[!] Tempo limite atingido. O dispositivo ainda não foi sincronizado pelo AD Connect." -ForegroundColor Red
-        }
+        # 3. Criação do Script de Lógica (O "Cérebro" do Booster)
+        $LogicContent = @"
+[CmdletBinding()]
+param([switch]`ManualClick)
 
+`$ConfigPath = "$ConfigPath"
+`$LogPath = "$Folder\Booster.log"
+
+# Gerenciamento do Contador
+if (Test-Path `$ConfigPath) {
+    [xml]`$xml = Get-Content `$ConfigPath
+    `$count = [int]`$xml.Settings.ExecutionCount
+} else {
+    `$count = 0
+    "<Settings><ExecutionCount>0</ExecutionCount></Settings>" | Out-File `$ConfigPath
+}
+
+`$count++
+`$xml.Settings.ExecutionCount = [string]`$count
+`$xml.Save(`$ConfigPath)
+Get-Date | Out-File `$LogPath -Append
+
+# --- EXECUÇÃO TÉCNICA ---
+# Força a janela de reparo do Windows (WAM/MFA)
+Start-Process "ms-settings:workplace-repairtoken"
+# Força o sincronismo de políticas silencioso
+Start-Process "C:\Windows\system32\deviceenroller.exe" -ArgumentList "/mobilepolicysync" -WindowStyle Hidden
+
+# --- LIMPEZA APÓS 3 LOGINS ---
+if (`$count -ge 3 -and -not `$ManualClick) {
+    Unregister-ScheduledTask -TaskName "GB_Identity_Booster" -Confirm:`$false
+    if (Test-Path "$PublicDesktop\$ShortcutName") { Remove-Item "$PublicDesktop\$ShortcutName" -Force }
+}
+"@
+        $LogicContent | Out-File -FilePath $ScriptPath -Encoding utf8 -Force
+        Write-Host "[OK] Script de lógica implantado." -ForegroundColor Green
+
+        # 4. Criação da Tarefa Agendada (Contexto de Usuário)
+        $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File $ScriptPath"
+        $Trigger = New-ScheduledTaskTrigger -AtLogon
+        $Principal = New-ScheduledTaskPrincipal -GroupId "Users" -Id "Author" # Roda para quem logar
+
+        Register-ScheduledTask -TaskName "GB_Identity_Booster" -Action $Action -Trigger $Trigger -Principal $Principal -Force | Out-Null
+        Write-Host "[OK] Tarefa Agendada registrada (Trigger: Logon)." -ForegroundColor Green
+
+        # 5. Criação do Atalho na Área de Trabalho Pública
+        $WshShell = New-Object -ComObject WScript.Shell
+        $Shortcut = $WshShell.CreateShortcut("$PublicDesktop\$ShortcutName")
+        $Shortcut.TargetPath = "powershell.exe"
+        $Shortcut.Arguments = "-ExecutionPolicy Bypass -WindowStyle Hidden -File $ScriptPath -ManualClick"
+        $Shortcut.IconLocation = "shell32.dll,238" # Ícone de chave
+        $Shortcut.Description = "Sincronizar Identidade Corporativa GB"
+        $Shortcut.Save()
+        Write-Host "[OK] Atalho criado na Área de Trabalho Pública." -ForegroundColor Green
+
+        Write-Host "--- SETUP CONCLUÍDO COM EXCELÊNCIA ---" -ForegroundColor Cyan
     }
     catch {
-        Write-Error "Erro no processo Guardião: $($_.Exception.Message)"
+        Write-Error "Falha ao configurar a estrutura: $($_.Exception.Message)"
     }
 }
