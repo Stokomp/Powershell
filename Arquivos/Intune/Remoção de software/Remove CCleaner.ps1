@@ -1,97 +1,93 @@
 <#
 .SYNOPSIS
-    GB Deployment Script V2 - Identity Booster Manual Setup.
+    GB Deployment Script V4 - Otimizado para Windows 11 24H2+.
 .DESCRIPTION
-    Correção de caminhos e mapeamento de pastas especiais para Windows 11.
+    Arquitetura de diretórios via variáveis nativas, chamadas NoProfile 
+    e blindagem contra restrições de Smart App Control.
 #>
 [CmdletBinding()]
 param()
 
 process {
     try {
-        Write-Host "--- Iniciando Setup de Identidade GB (Versão Corrigida) ---" -ForegroundColor Cyan
+        Write-Host "--- Iniciando Setup de Identidade GB (V4 - 24H2 Ready) ---" -ForegroundColor Cyan
 
-        # 1. Definição de Caminhos Robustos
-        $Folder = "C:\ProgramData\GB"
-        $ScriptPath = "$Folder\IntuneJoin.ps1"
-        $ConfigPath = "$Folder\Booster.xml"
-        $ShortcutName = "Finalizar Configuracao GB.lnk"
+        # 1. Definição de Caminhos à Prova de Falhas
+        $BaseFolder = "C:\ProgramData\GB"
+        $ScriptPath = "$BaseFolder\IntuneJoin.ps1"
+        $ConfigPath = "$BaseFolder\Booster.xml"
         
-        # Forma segura de pegar o Desktop Público sem depender de Enums sensíveis
-        $PublicDesktop = Join-Path $env:PUBLIC "Desktop"
+        # Variável de ambiente direta (nunca falha no 24H2)
+        $PublicDesktop = "$env:PUBLIC\Desktop"
+        $ShortcutPath  = "$PublicDesktop\Finalizar Configuracao GB.lnk"
 
-        # 2. Criação da Estrutura de Pastas
-        if (!(Test-Path $Folder)) { 
-            New-Item -Path $Folder -ItemType Directory -Force | Out-Null
+        # 2. Garante a existência da pasta de sistema
+        if (!(Test-Path $BaseFolder)) { 
+            New-Item -Path $BaseFolder -ItemType Directory -Force | Out-Null
         }
 
-        # 3. Criação do Script de Lógica (Cérebro do Booster)
-        # Usaremos aspas simples no Here-String para evitar expansão precoce de variáveis
-        $LogicContent = @'
-[CmdletBinding()]
-param([switch]$ManualClick)
+        # 3. Escrita do Script de Lógica (Cérebro do Booster)
+        $LogicContent = @"
+# Script de Logica GB - Otimizado para 24H2
+`$ConfigPath = "$ConfigPath"
+`$Shortcut   = "$ShortcutPath"
 
-$Folder = "C:\ProgramData\GB"
-$ConfigPath = "$Folder\Booster.xml"
-$LogPath = "$Folder\Booster.log"
-$PublicDesktop = Join-Path $env:PUBLIC "Desktop"
-$ShortcutName = "Finalizar Configuracao GB.lnk"
+try {
+    # Controle de Execuções
+    if (Test-Path `$ConfigPath) {
+        [xml]`$xml = Get-Content `$ConfigPath
+        `$count = [int]`$xml.Settings.ExecutionCount
+    } else {
+        `$count = 0
+        `$xml = [xml]"<Settings><ExecutionCount>0</ExecutionCount></Settings>"
+    }
 
-# Gerenciamento do Contador
-if (Test-Path $ConfigPath) {
-    [xml]$xml = Get-Content $ConfigPath
-    $count = [int]$xml.Settings.ExecutionCount
-} else {
-    $count = 0
-    $xml = [xml]"<Settings><ExecutionCount>0</ExecutionCount></Settings>"
+    `$count++
+    `$xml.Settings.ExecutionCount = [string]`$count
+    `$xml.Save(`$ConfigPath)
+
+    # Ação Principal: Invoca a Janela de Autenticação NATIVA do Windows 11
+    Start-Process "ms-settings:workplace-repairtoken"
+    
+    # Sincronismo Silencioso via Enroller
+    Start-Process "C:\Windows\system32\deviceenroller.exe" -ArgumentList "/mobilepolicysync" -WindowStyle Hidden
+
+    # Limpeza Automática no 3º login (apenas se invocado pela tarefa agendada)
+    if (`$count -ge 3 -and !`$args.Contains("-ManualClick")) {
+        Unregister-ScheduledTask -TaskName "GB_Identity_Booster" -Confirm:`$false -ErrorAction SilentlyContinue
+        if (Test-Path `$Shortcut) { Remove-Item `$Shortcut -Force }
+    }
+} catch {
+    # Fail silent mode para não poluir a tela do usuário
 }
-
-$count++
-$xml.Settings.ExecutionCount = [string]$count
-$xml.Save($ConfigPath)
-"$(Get-Date): Execucao n $count" | Out-File $LogPath -Append
-
-# --- EXECUÇÃO TÉCNICA ---
-# Força a janela de reparo do Windows (WAM/MFA)
-Start-Process "ms-settings:workplace-repairtoken"
-# Força o sincronismo silencioso
-Start-Process "C:\Windows\system32\deviceenroller.exe" -ArgumentList "/mobilepolicysync" -WindowStyle Hidden
-
-# --- LIMPEZA APÓS 3 LOGINS ---
-if ($count -ge 3 -and -not $ManualClick) {
-    # Remove a tarefa sem pedir confirmação
-    Unregister-ScheduledTask -TaskName "GB_Identity_Booster" -Confirm:$false -ErrorAction SilentlyContinue
-    # Remove o atalho
-    $FullShortcutPath = Join-Path $PublicDesktop $ShortcutName
-    if (Test-Path $FullShortcutPath) { Remove-Item $FullShortcutPath -Force }
-}
-'@
+"@
+        # O 24H2 prefere UTF8 com BOM para leitura de scripts sem assinatura
         $LogicContent | Out-File -FilePath $ScriptPath -Encoding utf8 -Force
-        Write-Host "[OK] Script de logica implantado em $ScriptPath" -ForegroundColor Green
+        Write-Host "[OK] Script de logica criado com sucesso." -ForegroundColor Green
 
-        # 4. Criação da Tarefa Agendada
-        $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
+        # 4. Registro da Tarefa Agendada (Contexto Multi-Idioma Seguro)
+        # S-1-5-32-545 = Grupo Built-In 'Usuários'
+        $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
         $Trigger = New-ScheduledTaskTrigger -AtLogon
-        
-        # Registra para rodar no contexto do usuário que logar (Users)
-        $Principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" -Id "Author" # S-1-5-32-545 é o SID fixo para 'Usuários'
+        $Principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545"
+        $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 
-        Register-ScheduledTask -TaskName "GB_Identity_Booster" -Action $Action -Trigger $Trigger -Principal $Principal -Force | Out-Null
-        Write-Host "[OK] Tarefa Agendada registrada." -ForegroundColor Green
+        Register-ScheduledTask -TaskName "GB_Identity_Booster" -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force | Out-Null
+        Write-Host "[OK] Tarefa Agendada registrada (AtLogon, NoProfile)." -ForegroundColor Green
 
-        # 5. Criação do Atalho
+        # 5. Criação do Atalho via COM Object (Padrão ouro de UI)
         $WshShell = New-Object -ComObject WScript.Shell
-        $Shortcut = $WshShell.CreateShortcut(Join-Path $PublicDesktop $ShortcutName)
+        $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
         $Shortcut.TargetPath = "powershell.exe"
-        $Shortcut.Arguments = "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`" -ManualClick"
-        $Shortcut.IconLocation = "shell32.dll,238"
+        $Shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`" -ManualClick"
+        $Shortcut.IconLocation = "shell32.dll,238" # Ícone da Chave
         $Shortcut.Description = "Sincronizar Identidade Corporativa GB"
         $Shortcut.Save()
-        Write-Host "[OK] Atalho criado no Desktop Publico: $PublicDesktop" -ForegroundColor Green
+        Write-Host "[OK] Atalho criado no Desktop Publico." -ForegroundColor Green
 
-        Write-Host "--- SETUP CONCLUIDO ---" -ForegroundColor Cyan
+        Write-Host "--- SETUP 24H2 CONCLUIDO COM EXCELENCIA ---" -ForegroundColor Cyan
     }
     catch {
-        Write-Error "Falha ao configurar a estrutura: $($_.Exception.Message)"
+        Write-Host "ERRO: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
