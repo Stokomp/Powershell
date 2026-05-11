@@ -1,27 +1,29 @@
 <#
 .SYNOPSIS
-    GB Identity Booster V7 - Literal String Architecture.
+    GB Identity Booster V8 - Syntax & Parser Safe.
 .DESCRIPTION
-    Resolve erros de parsing (caracteres inesperados) usando aspas literais.
-    Implementa monitoramento de PRT e finalização de Join para Windows 11 24H2.
+    Resolve o erro de compilação do WshShell e implementa a ponte MFA com Join.
 #>
 [CmdletBinding()]
 param()
 
 process {
     try {
-        Write-Host "--- Implantando GB Identity Booster V7 (Reestruturado) ---" -ForegroundColor Cyan
+        Write-Host "--- Implantando GB Identity Booster V8 (PowerForge) ---" -ForegroundColor Cyan
 
         # 1. Definição do Ambiente
         $BaseFolder = "C:\ProgramData\GB"
         $ScriptPath = "$BaseFolder\IntuneJoin.ps1"
         $PublicDesktop = "$env:PUBLIC\Desktop"
         $ShortcutName  = "Finalizar Configuracao GB.lnk"
+        
+        # PRE-CÁLCULO SEGURO: Resolve o erro do Join-Path
+        $FullShortcutPath = "$PublicDesktop\$ShortcutName"
 
         if (!(Test-Path $BaseFolder)) { New-Item $BaseFolder -ItemType Directory -Force | Out-Null }
 
         # =====================================================================
-        # 2. CÉREBRO DO BOOSTER (Literal Here-String: Sem expansão acidental)
+        # 2. CÉREBRO DO BOOSTER (Literal Here-String)
         # =====================================================================
         $LogicContent = @'
 param([switch]$ManualClick)
@@ -42,7 +44,7 @@ $count | Out-File $CounterFile -Force
 Start-Process "msedge.exe" -ArgumentList "--app=https://myaccount.microsoft.com", "--window-size=500,700"
 
 # --- 3. LOOP DE VIGILÂNCIA DO PRT ---
-$timeout = 300 # 5 minutos
+$timeout = 300 # 5 minutos de espera máxima
 $timer = [System.Diagnostics.Stopwatch]::StartNew()
 $prtReady = $false
 
@@ -57,15 +59,15 @@ while ($timer.Elapsed.TotalSeconds -lt $timeout) {
 
 # --- 4. FINALIZAÇÃO DO JOIN E SYNC ---
 if ($prtReady) {
-    # Comando de Matrícula do Intune
+    # Empurrão do Intune (Matrícula User Context)
     Start-Process "C:\Windows\system32\deviceenroller.exe" -ArgumentList "/c /u /d" -WindowStyle Hidden
     
     Start-Sleep -Seconds 10
     
-    # Comando de Download de Apps
+    # Sincronismo de Políticas
     Start-Process "C:\Windows\system32\deviceenroller.exe" -ArgumentList "/mobilepolicysync" -WindowStyle Hidden
 
-    # Feedback Visual GB
+    # Feedback de UX (Branding)
     $ws = New-Object -ComObject WScript.Shell
     $ws.Popup("Configuração concluída com sucesso! Seus aplicativos começarão a aparecer.", 10, "Grupo Boticário", 64) | Out-Null
 }
@@ -76,31 +78,30 @@ if ($count -ge 3 -and !$ManualClick) {
     if (Test-Path $ShortcutPath) { Remove-Item $ShortcutPath -Force }
 }
 '@
-        # Salva o script em UTF-8 com BOM (Padrão ouro do 24H2)
         $LogicContent | Out-File -FilePath $ScriptPath -Encoding utf8 -Force
 
         # =====================================================================
-        # 3. REGISTRO DE TAREFA E ATALHO (Concatenação Segura)
+        # 3. REGISTRO DE TAREFA E ATALHO
         # =====================================================================
-        
-        # Concatenação evita o erro do caractere 46 na linha 87
         $TaskArgs = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $ScriptPath + '"'
         $ShortcutArgs = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $ScriptPath + '" -ManualClick'
 
         $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $TaskArgs
         $Trigger = New-ScheduledTaskTrigger -AtLogon
-        $Principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" # Grupo Usuários Local
+        $Principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545"
         
         Register-ScheduledTask -TaskName "GB_Identity_Booster" -Action $Action -Trigger $Trigger -Principal $Principal -Force | Out-Null
 
         $WshShell = New-Object -ComObject WScript.Shell
-        $Shortcut = $WshShell.CreateShortcut("$PublicDesktop\$ShortcutName")
+        
+        # AQUI ESTÁ A CORREÇÃO PRINCIPAL: Passando a variável pré-calculada
+        $Shortcut = $WshShell.CreateShortcut($FullShortcutPath)
         $Shortcut.TargetPath = "powershell.exe"
         $Shortcut.Arguments = $ShortcutArgs
         $Shortcut.IconLocation = "shell32.dll,238"
         $Shortcut.Save()
 
-        Write-Host "[OK] Booster V7 implantado e livre de erros de parsing." -ForegroundColor Green
+        Write-Host "[OK] Booster V8 implantado sem erros de parser." -ForegroundColor Green
     }
     catch {
         Write-Error "Erro no Setup: $($_.Exception.Message)"
