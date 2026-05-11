@@ -1,69 +1,34 @@
-<#
-.SYNOPSIS
-    Executa manualmente o booster de enrollment e sincronismo do Intune (v4.2).
+# 1. Forçar notificações ON (Contexto do Usuário)
+$RegistryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings"
+if (!(Test-Path $RegistryPath)) { New-Item -Path $RegistryPath -Force }
+Set-ItemProperty -Path $RegistryPath -Name "NOC_GLOBAL_SETTING_TOASTS_ENABLED" -Value 1
 
-.DESCRIPTION
-    Este script verifica o status do AzureAdPrt e força o gatilho de enrollment 
-    e sincronização de políticas. Ideal para troubleshooting presencial ou remoto.
+# 2. Loop de verificação de Identidade (PRT)
+$Timeout = 10 # Tentará por 10 minutos
+$Counter = 0
 
-.EXAMPLE
-    PS C:\> .\Invoke-GBEnrollmentBooster.ps1
-#>
-[CmdletBinding()]
-param()
+Write-Host "Configurando sua conta corporativa. Por favor, aguarde..." -ForegroundColor Cyan
 
-process {
-    Write-Host "--- GB Enrollment Booster (Manual Mode) ---" -ForegroundColor Cyan
-    
-    try {
-        # 1. Diagnóstico de Identidade (dsregcmd)
-        Write-Verbose "Checando status do dispositivo e PRT..."
-        $dsreg = dsregcmd /status
+while ($Counter -lt $Timeout) {
+    $dsreg = dsregcmd /status
+    $hasPrt = ($dsreg | Select-String "AzureAdPrt : YES")
+
+    if ($hasPrt) {
+        Write-Host "Identidade confirmada! O Windows Hello iniciará em breve." -ForegroundColor Green
+        break
+    } else {
+        Write-Host "Identidade pendente. Tentando validar credenciais..." -ForegroundColor Yellow
         
-        $isJoined = $dsreg | Select-String "AzureAdJoined : YES"
-        $hasPrt   = $dsreg | Select-String "AzureAdPrt : YES"
-
-        if ($isJoined) {
-            Write-Host "[OK] Dispositivo está AzureAdJoined." -ForegroundColor Green
-        } else {
-            Write-Warning "[ALERTA] Dispositivo NÃO está AzureAdJoined. O enrollment pode falhar."
-        }
-
-        if (-not $hasPrt) {
-            Write-Host "[!] AzureAdPrt não detectado. Iniciando DeviceEnroller..." -ForegroundColor Yellow
-            # Dispara a UI de autenticação (Cloud Kerberos / Modern Auth)
-            Start-Process "C:\Windows\system32\DeviceEnroller.exe" -ArgumentList "/c /u /s" -Wait
-            Write-Host "[+] Fluxo de autenticação disparado." -ForegroundColor Green
-        } else {
-            Write-Host "[OK] AzureAdPrt (Token de Identidade) está ativo." -ForegroundColor Green
-        }
-
-        # 2. Gatilhos de Sincronismo (Intune/MDM)
-        Write-Host "--- Iniciando Sincronismo de Políticas ---" -ForegroundColor Cyan
+        # O PULO DO GATO: Abre a janela de correção e a traz para frente
+        Start-Process "ms-settings:workplace-repairtoken"
         
-        $MdmTasks = Get-ScheduledTask -TaskPath "\Microsoft\Windows\EnterpriseMgmt\*" -ErrorAction SilentlyContinue
-        
-        if ($null -eq $MdmTasks) {
-            Write-Error "Nenhuma tarefa de EnterpriseMgmt encontrada. O dispositivo pode não estar matriculado no MDM."
-        } else {
-            foreach ($Task in $MdmTasks) {
-                Write-Host "  > Disparando: $($Task.TaskName)" -ForegroundColor Gray
-                $Task | Start-ScheduledTask -ErrorAction SilentlyContinue
-            }
-        }
-
-        # Gatilho de Check-in Adicional
-        Write-Host "  > Disparando: PushLaunch" -ForegroundColor Gray
-        Start-ScheduledTask -TaskName "PushLaunch" -ErrorAction SilentlyContinue
-
-        # 3. Log de Sucesso Local
-        Write-Host "--- Processo Concluído com Sucesso ---" -ForegroundColor Cyan
-        Write-EventLog -LogName Application -Source "Application" -EventID 9020 -EntryType Information `
-            -Message "PowerForge: Enrollment Booster executado manualmente com sucesso."
-
+        # Força o motor de registro a procurar o usuário agora
+        Start-Process "C:\Windows\system32\DeviceEnroller.exe" -ArgumentList "/c /u /d" -Wait
     }
-    catch {
-        Write-Error "Falha crítica durante a execução: $($_.Exception.Message)"
-        exit 1
-    }
+
+    Start-Sleep -Seconds 60
+    $Counter++
 }
+
+# 3. Disparo final para o Intune
+Get-ScheduledTask | Where-Object {$_.TaskName -eq "PushLaunch"} | Start-ScheduledTask
