@@ -1,56 +1,52 @@
 <#
 .SYNOPSIS
-    Reparo de Identidade e Sincronismo MDM (Contexto de Usuário).
+    Diagnóstico avançado de PRT e reparo de conta corporativa.
     
 .DESCRIPTION
-    Ativa notificações globais para erros de conta, verifica a presença do Azure PRT
-    e força o sincronismo de políticas MDM/Intune sem exigir privilégios de Admin.
-
-.EXAMPLE
-    .\Repair-IdentityContext.ps1
+    Verifica o estado do Web Account Manager (WAM) e abre a URI de Shared Experiences
+    para resolução de problemas de credenciais "não verificadas".
 #>
 [CmdletBinding()]
 param()
 
 process {
     try {
-        # 1. Configuração de Notificações (UX para erros de conta)
-        Write-Host "1. Ativando notificações de sistema para o usuário..." -ForegroundColor Cyan
-        $RegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings"
+        Write-Host "--- DIAGNÓSTICO DE IDENTIDADE GB ---" -ForegroundColor Cyan
         
-        if (!(Test-Path $RegPath)) { 
-            New-Item -Path $RegPath -Force | Out-Null 
-        }
-
-        # NOC_GLOBAL_SETTING_TOASTS_ENABLED garante que alertas de conta não sejam silenciados
-        Set-ItemProperty -Path $RegPath -Name "NOC_GLOBAL_SETTING_TOASTS_ENABLED" -Value 1 -Force
-        Write-Host "[OK] Notificações configuradas." -ForegroundColor Green
-
-        # 2. Verificação de Identidade (PRT)
-        Write-Host "2. Validando Token de Identidade (Azure PRT)..." -ForegroundColor Cyan
+        # 1. Captura o status detalhado
         $dsreg = dsregcmd /status
-        $hasPrt = $dsreg | Select-String "AzureAdPrt : YES"
+        
+        $prtStatus = ($dsreg | Select-String "AzureAdPrt : YES")
+        $tpmStatus = ($dsreg | Select-String "TpmPresent : YES")
+        $wamStatus = ($dsreg | Select-String "WamDefaultSet : YES")
 
-        if ($hasPrt) {
-            Write-Host "[OK] Token PRT validado com sucesso." -ForegroundColor Green
-        } else {
-            Write-Host "[!] PRT Ausente. Invocando janela de autenticação..." -ForegroundColor Yellow
+        # Exibição de Status para o usuário
+        Write-Host "AzureAdPrt (Token): $(if($prtStatus){'OK'}else{'FALHA'})" -ForegroundColor $(if($prtStatus){'Green'}else{'Red'})
+        Write-Host "TPM Presente: $(if($tpmStatus){'OK'}else{'FALHA'})" -ForegroundColor $(if($tpmStatus){'Green'}else{'Red'})
+        Write-Host "WAM Default (Broker): $(if($wamStatus){'OK'}else{'FALHA'})" -ForegroundColor $(if($wamStatus){'Green'}else{'Red'})
+
+        # 2. Lógica de Reparo
+        if (!$prtStatus -or !$wamStatus) {
+            Write-Host "`n[!] Erro de Credenciais Detectado." -ForegroundColor Yellow
+            Write-Host "Invocando interface de Reparo de Experiências Compartilhadas..." -ForegroundColor Cyan
             
-            # Execução assíncrona para não travar o script enquanto o usuário loga
-            Start-Process -FilePath "C:\Windows\System32\DeviceEnroller.exe" -ArgumentList "/c /u /d" -WindowStyle Hidden
+            # Abre a página de "Experiências Compartilhadas" onde o botão "Corrigir Agora" reside
+            Start-Process "ms-settings:sharedexperiences"
+            
+            Write-Host "`n[AÇÃO NECESSÁRIA]:" -ForegroundColor White -BackgroundColor Red
+            Write-Host "Verifique a janela de Configurações que abriu." -ForegroundColor White
+            Write-Host "Se houver uma mensagem em vermelho dizendo 'Algumas contas precisam de atenção', clique em 'Corrigir Agora'." -ForegroundColor Yellow
         }
-
-        # 3. Forçar sincronismo de políticas (MobilePolicySync)
-        Write-Host "3. Sincronizando políticas de dispositivo (Intune)..." -ForegroundColor Cyan
-        
-        # O parâmetro /mobilepolicysync é o padrão ouro para 'Sync' via linha de comando no Win10/11
-        Start-Process -FilePath "C:\Windows\System32\DeviceEnroller.exe" -ArgumentList "/mobilepolicysync" -Wait
-        
-        Write-Host "[OK] Sincronismo disparado com sucesso." -ForegroundColor Green
-        Write-Host "--- PROCESSO CONCLUÍDO ---" -ForegroundColor Cyan
+        else {
+            Write-Host "`n[OK] A identidade parece íntegra no nível de protocolo." -ForegroundColor Green
+            Write-Host "Forçando re-autenticação de contexto via Workplace..." -ForegroundColor Cyan
+            
+            # Abre a área de Contas de Trabalho para forçar o Refresh visual
+            Start-Process "ms-settings:workplace"
+        }
 
     }
     catch {
-        Write-Error "Falha crítica durante o reparo de identidade: $($_.Exception.Message)"
+        Write-Error "Erro ao processar diagnóstico: $($_.Exception.Message)"
     }
 }
