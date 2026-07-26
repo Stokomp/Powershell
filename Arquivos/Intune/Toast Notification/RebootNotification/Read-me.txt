@@ -1,0 +1,1 @@
+Notificacao toast criada para alertar sobre boas praticas de reiniciar o Windows.
